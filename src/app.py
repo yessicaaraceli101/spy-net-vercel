@@ -19,7 +19,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # ===========================
 #  Configuración base
 # ===========================
-# Importante: templates/static están un nivel arriba de src/
+# templates/static están un nivel arriba de src/
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.secret_key = 'tu_clave_secreta_super_segura'
 app.permanent_session_lifetime = timedelta(days=30)
@@ -61,7 +61,7 @@ def update_user_fields(conn, user_id, fields: dict):
     data = {k: v for k, v in fields.items() if k in cols}
     if not data:
         return
-    sets = ", ".join([f"{k}=?" for k in data.keys()])
+    sets = ", ".join([f"{k}=?" for k in data.keys() ])
     sql = f"UPDATE usuarios SET {sets}, updated_at=CURRENT_TIMESTAMP WHERE id=?"
     params = list(data.values()) + [user_id]
     conn.execute(sql, params)
@@ -171,7 +171,8 @@ def health():
 
 @app.get("/")
 def root():
-    return "Flask en Vercel ✅ — ir a /login", 200
+    # Redirige a /login para evitar 404 del proxy en Vercel
+    return redirect(url_for("login"))
 
 # ===========================
 #  AUTH: Registro / Login / Forgot
@@ -654,6 +655,7 @@ def subir_foto_instalacion():
 @app.route("/clientes")
 def clientes():
     if "usuario_id" not in session and "usuario" not in session:
+    # ...resto igual...
         return redirect(url_for("login"))
 
     q        = request.args.get("q","").strip()
