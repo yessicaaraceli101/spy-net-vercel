@@ -1158,6 +1158,17 @@ def gps_ping():
     db.commit(); db.close()
     return "ok"
 
+    
+
+    @app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.get("/")
+def home():
+    # Ruta mínima para verificar que Flask responde en Vercel
+    return "Flask en Vercel ✅"
+
 
 
 # ===========================
