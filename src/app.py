@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
 from unicodedata import normalize
 from werkzeug.security import generate_password_hash, check_password_hash
+from app import app
 
 # ===========================
 #  Configuración base
