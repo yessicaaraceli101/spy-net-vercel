@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, send_file, session, flash
+from flask import Flask, render_template, request, redirect, jsonify, url_for, send_file, session, flash
 import sqlite3
 import io
 import csv, re
@@ -12,6 +12,17 @@ from flask import jsonify
 from unicodedata import normalize
 from werkzeug.security import generate_password_hash, check_password_hash
 import unicodedata
+
+app = Flask(__name__, template_folder="../templates", static_folder="../static")
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.get("/")
+def home():
+    # ruta mínima para confirmar que el deploy funciona
+    return "Flask en Vercel ✅"
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_super_segura'
@@ -1158,11 +1169,10 @@ def gps_ping():
     db.commit(); db.close()
     return "ok"
 
-    
-
     @app.get("/health")
-def health():
-    return {"ok": True}
+    def health():
+    
+                    return {"ok": True}
 
 @app.get("/")
 def home():
