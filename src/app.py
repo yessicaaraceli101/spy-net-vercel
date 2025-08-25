@@ -1,51 +1,50 @@
 # app.py
-from flask import Flask, render_template, request, redirect, jsonify, url_for, send_file, session, flash
+from flask import (
+    Flask, render_template, request, redirect, jsonify, url_for,
+    send_file, session, flash
+)
 import sqlite3
 import io
-import csv, re
+import csv
+import re
+import os
+import unicodedata
 from docx import Document
 from fpdf import FPDF
-import os
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
-from flask import jsonify
 from unicodedata import normalize
 from werkzeug.security import generate_password_hash, check_password_hash
-import unicodedata
 
+# ===========================
+#  Configuración base
+# ===========================
+# Importante: templates/static están un nivel arriba de src/
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
-
-@app.get("/health")
-def health():
-    return {"ok": True}
-
-@app.get("/")
-def home():
-    # ruta mínima para confirmar que el deploy funciona
-    return "Flask en Vercel ✅"
-
-app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_super_segura'
 app.permanent_session_lifetime = timedelta(days=30)
 
-# Config de subida de imágenes
-UPLOAD_FOLDER = 'static/img/herramientas'
+# En Vercel el FS es solo lectura salvo /tmp → guardamos BD y uploads ahí
+UPLOAD_FOLDER = "/tmp/uploads"
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
-# -------------------- Utilidades BD --------------------
+# ===========================
+#  Utilidades
+# ===========================
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db():
-    db_path = os.path.join(app.root_path, "asistencias.db")
+    # BD en /tmp para que sea escribible en serverless
+    db_path = os.path.join("/tmp", "asistencias.db")
+    os.makedirs("/tmp", exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
 def col(row, key, default=None):
-    """Devuelve row[key] si existe y no es None; sino default."""
     try:
         if hasattr(row, "keys") and key in row.keys() and row[key] is not None:
             return row[key]
@@ -58,7 +57,6 @@ def table_columns(conn, table):
     return {r[1] for r in cur.fetchall()}
 
 def update_user_fields(conn, user_id, fields: dict):
-    """Actualiza solo columnas existentes en usuarios."""
     cols = table_columns(conn, "usuarios")
     data = {k: v for k, v in fields.items() if k in cols}
     if not data:
@@ -70,7 +68,6 @@ def update_user_fields(conn, user_id, fields: dict):
     conn.commit()
 
 def insert_row(conn, table, data: dict):
-    """Inserta solo las columnas que existan en la tabla."""
     cols = table_columns(conn, table)
     filt = {k: v for k, v in data.items() if k in cols}
     if not filt:
@@ -84,7 +81,6 @@ def insert_row(conn, table, data: dict):
         return rid
     except Exception:
         return None
-
 
 # -------------------- Importación CSV tolerante --------------------
 def _norm_key(s: str) -> str:
@@ -109,8 +105,8 @@ _HEADER_MAP = {
     "estado": "situacion",
     "exonerado": "exonerado",
     "exento": "exonerado",
-    "tipo_valor": "tipo_valor",     # p.ej. "cliente 130.000"
-    "tipo": "tipo",                 # si ya viene separado
+    "tipo_valor": "tipo_valor",
+    "tipo": "tipo",
     "valor": "valor",
     "vencimiento": "vencimiento",
     "fecha_vencimiento": "vencimiento",
@@ -156,14 +152,9 @@ def _guess_delimiter(text):
         return ";" if head.count(";") > head.count(",") else ","
 
 def _split_tipo_valor(raw_tipo_o_tv, raw_valor):
-    """
-    - tipo: si viene vacío -> 'cliente'
-    - valor: toma 'valor' si viene; si no, intenta extraer número de 'tipo_valor'
-    """
     tipo = (raw_tipo_o_tv or "").strip().lower()
     if not tipo:
         tipo = "cliente"
-
     valor = (raw_valor or "").strip()
     if not valor and raw_tipo_o_tv:
         m = re.search(r"(\d[\d\.\,]*)", str(raw_tipo_o_tv))
@@ -171,6 +162,16 @@ def _split_tipo_valor(raw_tipo_o_tv, raw_valor):
             valor = m.group(1).strip()
     return tipo, (valor or None)
 
+# ===========================
+#  Rutas de verificación
+# ===========================
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.get("/")
+def root():
+    return "Flask en Vercel ✅ — ir a /login", 200
 
 # ===========================
 #  AUTH: Registro / Login / Forgot
@@ -242,7 +243,7 @@ def forgot_password():
 
     return render_template("forgot_password.html")
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         usuario = request.form.get("usuario", "").strip()
@@ -284,7 +285,6 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-
 # ===========================
 #  Páginas principales
 # ===========================
@@ -294,14 +294,12 @@ def menu():
         return redirect(url_for("login"))
     return render_template("menu.html")
 
-
 @app.route("/nuevo_ticket", methods=["GET", "POST"])
 def nuevo_ticket():
     if "usuario" not in session and "usuario_id" not in session:
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        # --- Campos del formulario ---
         cliente        = (request.form.get("cliente") or "").strip()
         cliente_id     = request.form.get("cliente_id") or None
         direccion      = (request.form.get("direccion") or "").strip()
@@ -315,11 +313,9 @@ def nuevo_ticket():
         canal          = (request.form.get("canal") or "web").strip()
         estado         = (request.form.get("estado") or "pendiente").strip()
 
-        # Fecha/hora agenda
         programada_local = (request.form.get("programada_local") or "").strip()
         programada_en = programada_local.replace("T", " ") if programada_local else None
 
-        # PPPoE si falta
         if not pppoe and cliente:
             slug = normalize("NFD", cliente.lower()).encode("ascii", "ignore").decode("ascii")
             slug = "".join(ch for ch in slug if ch.isalnum())
@@ -349,11 +345,8 @@ def nuevo_ticket():
         flash("Asistencia registrada.", "success")
         return redirect(url_for("tickets"))
 
-    # --- GET: cargar selects ---
     db = get_db()
     ccols = table_columns(db, "clientes")
-
-    # columnas base + opcionales (solo si existen en tu tabla)
     base_cols = ["id", "nombre", "apellido", "direccion"]
     opt_cols  = ["cedula", "pppoe", "telefono", "barrio", "referencia", "tipo_valor", "valor", "plan", "tipo"]
 
@@ -374,7 +367,7 @@ def nuevo_ticket():
             "barrio": col(r, "barrio", ""),
             "referencia": col(r, "referencia", ""),
             "tipo_valor": col(r, "tipo_valor", ""),
-            "valor": col(r, "valor", col(r, "plan", "")),  # usa valor; si no, plan
+            "valor": col(r, "valor", col(r, "plan", "")),
             "plan": col(r, "plan", ""),
             "tipo": col(r, "tipo", "cliente"),
         })
@@ -389,18 +382,15 @@ def nuevo_ticket():
 
     return render_template("nuevo_ticket.html", clientes=clientes, tecnicos=tecnicos)
 
-
 @app.route("/tickets")
 def tickets():
     if "usuario" not in session and "usuario_id" not in session:
         return redirect(url_for("login"))
-
     db = get_db()
     rows = db.execute("SELECT * FROM asistencias ORDER BY datetime(fecha) DESC").fetchall()
     data = [dict(row) for row in rows]
     db.close()
     return render_template("tickets.html", tickets=data)
-
 
 # ===========================
 #  Descargas (PDF/WORD)
@@ -466,9 +456,12 @@ def descargar_word():
     output = io.BytesIO()
     doc.save(output)
     output.seek(0)
-    return send_file(output, download_name="asistencias.docx", as_attachment=True,
-                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-
+    return send_file(
+        output,
+        download_name="asistencias.docx",
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 # ===========================
 #  Otras páginas
@@ -528,10 +521,11 @@ def equipos():
     conn.close()
 
     now = datetime.now()
-    return render_template("equipos.html", equipos=equipos, herramientas=herramientas,
-                           historial=historial, total=total_items, en_uso=en_uso, disponibles=disponibles,
-                           now=now)
-
+    return render_template(
+        "equipos.html",
+        equipos=equipos, herramientas=herramientas, historial=historial,
+        total=total_items, en_uso=en_uso, disponibles=disponibles, now=now
+    )
 
 @app.route('/registrar_equipo', methods=['POST'])
 def registrar_equipo():
@@ -606,8 +600,7 @@ def subir_imagen_herramienta():
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        if not os.path.exists(app.config['UPLOAD_FOLDER']):
-            os.makedirs(app.config['UPLOAD_FOLDER'])
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
@@ -639,11 +632,9 @@ def subir_foto_instalacion():
         flash("No se seleccionó ninguna foto", "danger")
         return redirect(url_for("equipos"))
 
-    carpeta_destino = "static/img/herramientas"
-    os.makedirs(carpeta_destino, exist_ok=True)
-
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     nombre_archivo = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(foto.filename)}"
-    ruta_guardado = os.path.join(carpeta_destino, nombre_archivo)
+    ruta_guardado = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo)
     foto.save(ruta_guardado)
 
     conn = get_db()
@@ -657,7 +648,6 @@ def subir_foto_instalacion():
     flash("Foto subida correctamente.", "success")
     return redirect(url_for("equipos"))
 
-
 # ===========================
 #  Clientes
 # ===========================
@@ -667,12 +657,11 @@ def clientes():
         return redirect(url_for("login"))
 
     q        = request.args.get("q","").strip()
-    situ     = request.args.get("situacion","").strip()   # filtro por situación
-    exo      = request.args.get("exonerado","")           # "0" / "1" / ""
+    situ     = request.args.get("situacion","").strip()
+    exo      = request.args.get("exonerado","")
     barrio_f = request.args.get("barrio","").strip()
 
     db = get_db()
-    # Traemos todo y normalizamos en Python para tolerar faltantes
     sql = "SELECT * FROM clientes WHERE 1=1"
     p = []
     if q:
@@ -694,7 +683,6 @@ def clientes():
     tot  = db.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
     db.close()
 
-    # Normalizamos tipo/valor (fall back a tipo_valor si no existen)
     clientes_norm = []
     for r in rows:
         rd = dict(r)
@@ -823,7 +811,6 @@ def clientes_editar(cid):
     db.close()
     return render_template("cliente_form.html", mode="edit", cliente=c)
 
-
 @app.route("/clientes/<int:cid>/toggle", methods=["POST"])
 def clientes_toggle(cid):
     if "usuario_id" not in session and "usuario" not in session:
@@ -848,9 +835,8 @@ def clientes_eliminar(cid):
     flash("Cliente eliminado.", "success")
     return redirect(url_for("clientes"))
 
-
 # ===========================
-#  Agenda + Acciones de tickets (POST)
+#  Agenda + Acciones de tickets
 # ===========================
 @app.route("/agenda")
 def agenda():
@@ -921,13 +907,12 @@ def agenda():
         tecnicos=tecnicos,
     )
 
-
 @app.route("/tickets/<int:tid>/programar", methods=["POST"])
 def tickets_programar(tid):
     if "usuario" not in session and "usuario_id" not in session:
         return redirect(url_for("login"))
 
-    prog = (request.form.get("programada_local") or "").strip()  # "YYYY-MM-DDTHH:MM"
+    prog = (request.form.get("programada_local") or "").strip()
     programada_en = prog.replace("T", " ") if prog else None
 
     db = get_db()
@@ -943,7 +928,6 @@ def tickets_programar(tid):
 
     flash("Cita reprogramada.", "success")
     return redirect(request.referrer or url_for("agenda"))
-
 
 @app.route("/tickets/<int:tid>/estado", methods=["POST"])
 def tickets_cambiar_estado(tid):
@@ -970,7 +954,6 @@ def tickets_cambiar_estado(tid):
     flash("Estado actualizado.", "success")
     return redirect(request.referrer or url_for("agenda"))
 
-
 @app.route("/tickets/<int:tid>/asignar", methods=["POST"])
 def tickets_asignar(tid):
     if "usuario" not in session and "usuario_id" not in session:
@@ -992,7 +975,6 @@ def tickets_asignar(tid):
     flash("Técnico asignado.", "success")
     return redirect(request.referrer or url_for("agenda"))
 
-
 # ===========================
 #  Importar clientes (CSV)
 # ===========================
@@ -1001,7 +983,7 @@ def clientes_importar():
     if "usuario_id" not in session and "usuario" not in session:
         return redirect(url_for("login"))
 
-    f = request.files.get("csvfile")  # el input del formulario debe llamarse csvfile
+    f = request.files.get("csvfile")
     if not f or f.filename == "":
         flash("Seleccioná un archivo CSV.", "warning")
         return redirect(url_for("clientes"))
@@ -1045,7 +1027,7 @@ def clientes_importar():
             telefono = digits if len(digits) >= 6 else telefono
         situacion  = norm.get("situacion") or ""
         exonerado  = _parse_bool(norm.get("exonerado"))
-        tv         = norm.get("tipo_valor")  # si viene junto
+        tv         = norm.get("tipo_valor")
         tipo_in    = norm.get("tipo")
         valor_in   = norm.get("valor")
         tipo_final, valor_final = _split_tipo_valor(tipo_in or tv, valor_in)
@@ -1066,13 +1048,11 @@ def clientes_importar():
             "vencimiento": venc,
             "activo": activo
         }
-        # Guardamos tipo/valor si existen; mantenemos tipo_valor para compatibilidad si es la única
         if "tipo" in cols:   data["tipo"] = tipo_final
         if "valor" in cols:  data["valor"] = valor_final
         if "tipo_valor" in cols and ("tipo" not in cols or "valor" not in cols):
             data["tipo_valor"] = tv or f"{tipo_final} {valor_final or ''}".strip()
 
-        # upsert por external_id; luego por teléfono
         row = None
         if ext_id:
             row = db.execute("SELECT id FROM clientes WHERE external_id=?", (ext_id,)).fetchone()
@@ -1092,8 +1072,9 @@ def clientes_importar():
     flash(f"Importación OK. Insertados {ins}, actualizados {upd}. (codificación {enc}, separador '{delim}')", "success")
     return redirect(url_for("clientes"))
 
-
-    # --- API datos para el mapa ---
+# ===========================
+#  API mapa y GPS
+# ===========================
 @app.route("/api/mapa_datos", endpoint="api_mapa_datos")
 def api_mapa_datos():
     if "usuario" not in session and "usuario_id" not in session:
@@ -1127,8 +1108,6 @@ def api_mapa_datos():
                       "lat": r["lat"], "lng": r["lng"], "ts": r["ts"]} for r in pos]
     })
 
-
-# --- Trayectoria de un técnico (por fecha) ---
 @app.route("/api/tecnico_trayectoria/<int:tid>", endpoint="api_tecnico_trayectoria")
 def api_tecnico_trayectoria(tid):
     if "usuario" not in session and "usuario_id" not in session:
@@ -1147,8 +1126,6 @@ def api_tecnico_trayectoria(tid):
     db.close()
     return jsonify([dict(r) for r in rows])
 
-
-# --- Ping GPS (móvil) ---
 @app.route("/gps", methods=["GET","POST"], endpoint="gps_ping")
 def gps_ping():
     tecnico_id = request.values.get("tecnico_id")
@@ -1169,20 +1146,8 @@ def gps_ping():
     db.commit(); db.close()
     return "ok"
 
-    @app.get("/health")
-    def health():
-    
-                    return {"ok": True}
-
-@app.get("/")
-def home():
-    # Ruta mínima para verificar que Flask responde en Vercel
-    return "Flask en Vercel ✅"
-
-
-
 # ===========================
-#  Main
+#  Main (solo local)
 # ===========================
 if __name__ == "__main__":
     app.run(debug=True)
