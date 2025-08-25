@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Cliente{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">{{ c['nombre'] }} {{ c['apellido'] }}</h4>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{{ url_for('clientes_editar', cid=c['id']) }}">Editar</a>
+    <a class="btn btn-primary" href="{{ url_for('nuevo_ticket') }}?cliente={{ (c['nombre'] ~ ' ' ~ c['apellido']).strip() }}&direccion={{ c['direccion']|urlencode }}">
+      Nuevo ticket
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Información</strong></div>
+      <div class="card-body">
+        <div><strong>Tel:</strong> {{ c['telefono'] or '-' }}</div>
+        <div><strong>Email:</strong> {{ c['email'] or '-' }}</div>
+        <div><strong>Dirección:</strong> {{ c['direccion'] or '-' }}</div>
+        <div><strong>Plan:</strong> {{ c['plan'] or '-' }}</div>
+        <div><strong>Estado:</strong>
+          {% if c['activo']==1 %}<span class="badge text-bg-success">Activo</span>
+          {% else %}<span class="badge text-bg-secondary">Inactivo</span>{% endif %}
+        </div>
+        {% if c['lat'] and c['lng'] %}
+          <div class="mt-2 small text-muted">Lat/Lng: {{ c['lat'] }}, {{ c['lng'] }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Últimos tickets</strong></div>
+      <div class="card-body">
+        {% if tickets %}
+          <ul class="list-group list-group-flush">
+            {% for t in tickets %}
+            <li class="list-group-item">
+              <div class="fw-semibold">{{ t['tipo'] }} · {{ t['prioridad'] }}</div>
+              <div class="small text-muted">{{ t['fecha'] }} — Téc: {{ t['tecnico'] }}</div>
+              <div class="text-truncate-2 small">{{ t['problema'] }}</div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">Sin tickets recientes.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

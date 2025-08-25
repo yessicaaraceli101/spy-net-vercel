@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Registrar Nueva Asistencia{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Registrar Nueva Asistencia</h1>
+
+<form method="POST" action="{{ url_for('nuevo_ticket') }}" id="form-ticket" class="row g-3">
+
+  <!-- Cliente -->
+  <div class="col-12 col-md-6">
+    <label for="cliente" class="form-label">Cliente</label>
+    <select id="cliente" name="cliente" class="form-select" required>
+      <option value="" disabled selected>Selecciona un cliente</option>
+      {% for c in clientes %}
+        <option
+          value="{{ (c.nombre ~ (' ' ~ c.apellido if c.apellido else ''))|trim }}"
+          data-id="{{ c.id }}"
+          data-cedula="{{ c.cedula or '' }}"
+          data-pppoe="{{ c.pppoe or '' }}"
+          data-direccion="{{ c.direccion or '' }}"
+          data-telefono="{{ c.telefono or '' }}"
+          data-barrio="{{ c.barrio or '' }}"
+          data-referencia="{{ c.referencia or '' }}"
+          data-tipo_valor="{{ c.tipo_valor or '' }}"
+          data-valor="{{ c.valor or '' }}"
+        >
+          {{ c.nombre }}{% if c.apellido %} {{ c.apellido }}{% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <input type="hidden" id="cliente_id" name="cliente_id">
+  </div>
+
+  <!-- Cédula -->
+  <div class="col-12 col-md-3">
+    <label for="cedula" class="form-label">Cédula</label>
+    <input type="text" id="cedula" name="cedula" class="form-control" readonly>
+  </div>
+
+  <!-- PPPoE -->
+  <div class="col-12 col-md-3">
+    <label for="pppoe" class="form-label">PPPoE</label>
+    <input type="text" id="pppoe" name="pppoe" class="form-control" readonly>
+  </div>
+
+  <!-- Dirección -->
+  <div class="col-12">
+    <label for="direccion" class="form-label">Dirección</label>
+    <input type="text" id="direccion" name="direccion" class="form-control" required>
+  </div>
+
+  <!-- Teléfono -->
+  <div class="col-12 col-md-4">
+    <label class="form-label">Teléfono</label>
+    <input class="form-control" id="telefono_cliente" readonly>
+  </div>
+
+  <!-- Barrio -->
+  <div class="col-12 col-md-4">
+    <label class="form-label">Barrio</label>
+    <input class="form-control" id="barrio_cliente" readonly>
+  </div>
+
+  <!-- Referencia -->
+  <div class="col-12 col-md-4">
+    <label class="form-label">Referencia</label>
+    <input class="form-control" id="referencia_cliente" readonly>
+  </div>
+
+  <!-- Tipo (cliente) y Valor (plan) -->
+  <div class="col-12 col-md-6">
+    <label class="form-label">Tipo (cliente)</label>
+    <input class="form-control" id="tipo_cliente" value="cliente" readonly>
+    <!-- oculto por si quisieras guardarlo en el POST sin tocar backend -->
+    <input type="hidden" name="cliente_tipo" id="tipo_cliente_hidden" value="cliente">
+  </div>
+  <div class="col-12 col-md-6">
+    <label class="form-label">Valor (plan)</label>
+    <input class="form-control" id="valor_cliente" readonly>
+    <!-- oculto por si quisieras guardarlo en el POST sin tocar backend -->
+    <input type="hidden" name="cliente_valor" id="valor_cliente_hidden">
+  </div>
+
+  <!-- Agenda (fecha y hora) -->
+  <div class="col-12 col-md-6">
+    <label for="programada_local" class="form-label">Fecha y hora (agenda)</label>
+    <input type="datetime-local" id="programada_local" name="programada_local" class="form-control">
+  </div>
+
+  <!-- Tipo de ticket -->
+  <div class="col-12 col-md-6">
+    <label class="form-label">Tipo</label>
+    <select class="form-select" name="tipo">
+      <option>Instalación</option>
+      <option>Reparación</option>
+      <option>Cambio de router</option>
+      <option>Otro</option>
+    </select>
+  </div>
+
+  <!-- Prioridad -->
+  <div class="col-12 col-md-6">
+    <label class="form-label">Señal</label>
+    <select class="form-select" name="prioridad">
+      <option>Alta</option>
+      <option selected>Media</option>
+      <option>Baja</option>
+    </select>
+  </div>
+
+  <!-- Técnico -->
+  <div class="col-12 col-md-6">
+    <label class="form-label">Técnico</label>
+    {% if tecnicos %}
+      <select class="form-select" id="tecnico_id_select">
+        <option value="">(Sin asignar)</option>
+        {% for t in tecnicos %}
+          <option value="{{ t.id }}">{{ t.nombre }}</option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="tecnico_id" id="tecnico_id">
+      <input type="hidden" name="tecnico" id="tecnico_nombre">
+    {% else %}
+      <select class="form-select" name="tecnico" id="tecnico_fijo">
+        <option>Cristhian Alcaraz</option>
+        <option>Richard Leckie</option>
+        <option>Néstor Villalba</option>
+        <option>Robert Leckie</option>
+      </select>
+    {% endif %}
+  </div>
+
+  <!-- Descripción -->
+  <div class="col-12">
+    <label class="form-label">Descripción del Problema</label>
+    <textarea class="form-control" name="problema" rows="4"></textarea>
+  </div>
+
+  <!-- Canal y estado -->
+  <input type="hidden" name="canal" value="web">
+  <input type="hidden" name="estado" value="pendiente">
+
+  <div class="col-12 d-grid d-md-flex gap-2">
+    <button class="btn btn-primary" type="submit">Guardar</button>
+    <a href="{{ url_for('tickets') }}" class="btn btn-outline-secondary">Ver Asistencias</a>
+    <a href="{{ url_for('menu') }}" class="btn btn-outline-secondary">Volver al Menú</a>
+  </div>
+</form>
+
+<script>
+  // --- refs
+  const clienteSelect   = document.getElementById('cliente');
+  const clienteIdInput  = document.getElementById('cliente_id');
+
+  const cedulaInput     = document.getElementById('cedula');
+  const pppoeInput      = document.getElementById('pppoe');
+  const direccionInput  = document.getElementById('direccion');
+
+  const telInput        = document.getElementById('telefono_cliente');
+  const barrioInput     = document.getElementById('barrio_cliente');
+  const refInput        = document.getElementById('referencia_cliente');
+
+  const tipoCliInput    = document.getElementById('tipo_cliente');
+  const tipoCliHidden   = document.getElementById('tipo_cliente_hidden');
+  const valorCliInput   = document.getElementById('valor_cliente');
+  const valorCliHidden  = document.getElementById('valor_cliente_hidden');
+
+  const dtInput         = document.getElementById('programada_local');
+
+  // Mínimo: no permitir fecha pasada
+  (function setMinDateTime() {
+    if (!dtInput) return;
+    const pad = n => n.toString().padStart(2,'0');
+    const d = new Date();
+    const val = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    dtInput.min = val;
+  })();
+
+  function extraerNumero(s) {
+    if (!s) return '';
+    const m = String(s).match(/(\d[\d\.,]*)/);
+    return m ? m[1] : '';
+  }
+
+  // Al cambiar cliente, rellena datos
+  clienteSelect.addEventListener('change', function () {
+    const op   = this.options[this.selectedIndex];
+    const cid  = op.getAttribute('data-id') || '';
+
+    const ced  = op.getAttribute('data-cedula') || '';
+    let   ppp  = op.getAttribute('data-pppoe') || '';
+    const dir  = op.getAttribute('data-direccion') || '';
+
+    const tel  = op.getAttribute('data-telefono') || '';
+    const bar  = op.getAttribute('data-barrio') || '';
+    const ref  = op.getAttribute('data-referencia') || '';
+
+    const tvRaw= op.getAttribute('data-tipo_valor') || '';
+    const val1 = op.getAttribute('data-valor') || extraerNumero(tvRaw);
+    const tipo = 'cliente'; // regla: siempre "cliente"
+
+    // ID
+    clienteIdInput.value = cid;
+
+    // básicos
+    cedulaInput.value = ced;
+    direccionInput.value = dir;
+    telInput.value = tel;
+    barrioInput.value = bar;
+    refInput.value = ref;
+
+    // PPPoE: si no hay en BD, generamos slug@spynet.com
+    if (!ppp) {
+      const nombre = op.textContent.trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // quitar tildes
+        .replace(/[^\w\s]/g,'')                            // signos
+        .replace(/\s+/g,'');                               // espacios
+      ppp = `${nombre}@spynet.com`;
+    }
+    pppoeInput.value = ppp;
+
+    // Tipo/Valor
+    tipoCliInput.value  = tipo;
+    tipoCliHidden.value = tipo;
+    valorCliInput.value = val1 || '';
+    valorCliHidden.value= val1 || '';
+  });
+
+  // Si hay selector de técnico por ID, sincroniza hidden fields
+  (function syncTecnico() {
+    const tecSel = document.getElementById('tecnico_id_select');
+    if (!tecSel) return;
+    const tecIdHidden   = document.getElementById('tecnico_id');
+    const tecNameHidden = document.getElementById('tecnico_nombre');
+    tecSel.addEventListener('change', function () {
+      const op = this.options[this.selectedIndex];
+      tecIdHidden.value   = op.value || '';
+      tecNameHidden.value = op.textContent || '';
+    });
+  })();
+</script>
+{% endblock %}

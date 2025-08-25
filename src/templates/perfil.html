@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Mi perfil{% endblock %}
+
+{% block content %}
+
+<div class="container py-3">
+  <div class="row g-4">
+
+    <!-- Columna izquierda: Avatar -->
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          {% set avatar_url = session.get('foto_url') or url_for('static', filename='img/users/default.png') %}
+          <img src="{{ avatar_url }}" class="rounded-circle mb-3" style="width:128px;height:128px;object-fit:cover;border:3px solid #e9ecef" alt="Avatar">
+
+          <form method="post" action="{{ url_for('perfil_avatar') }}" enctype="multipart/form-data" class="d-grid gap-2">
+            <input type="file" name="avatar" accept=".jpg,.jpeg,.png,.gif" class="form-control">
+            <button class="btn btn-primary">Actualizar foto</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Cambiar contraseña -->
+      <div class="card shadow-sm mt-4">
+        <div class="card-header"><strong>Cambiar contraseña</strong></div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('perfil_password') }}" class="row g-2">
+            <div class="col-12">
+              <label class="form-label">Actual</label>
+              <input type="password" name="actual" class="form-control" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Nueva</label>
+              <input type="password" name="nueva" class="form-control" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Repetir</label>
+              <input type="password" name="repetir" class="form-control" required>
+            </div>
+            <div class="col-12 d-grid">
+              <button class="btn btn-outline-primary">Guardar contraseña</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: Datos y preferencias -->
+    <div class="col-12 col-lg-8">
+      <form method="post" action="{{ url_for('perfil') }}">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header"><strong>Datos personales</strong></div>
+          <div class="card-body row g-3">
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Nombre</label>
+              <input name="nombre" class="form-control" value="{{ user['nombre'] or '' }}" required>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Email</label>
+              <input name="email" type="email" class="form-control" value="{{ user['email'] or '' }}" required>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input name="telefono" class="form-control" value="{{ user['telefono'] or '' }}">
+            </div>
+
+            {# Campos adaptados por rol #}
+            {% if session.get('rol') == 'admin' %}
+              <div class="col-12 col-md-6">
+                <label class="form-label">Rol</label>
+                <select name="rol" class="form-select">
+                  <option value="admin"   {{ 'selected' if user['rol']=='admin' else '' }}>Admin</option>
+                  <option value="tecnico" {{ 'selected' if user['rol']=='tecnico' else '' }}>Técnico</option>
+                  <option value="operador"{{ 'selected' if user['rol']=='operador' else '' }}>Operador</option>
+                </select>
+              </div>
+            {% endif %}
+
+            {% if session.get('rol') == 'tecnico' %}
+              <div class="col-12 col-md-6">
+                <label class="form-label">Zona / Área</label>
+                <input name="area" class="form-control" value="{{ user['area'] or '' }}" placeholder="Ej: San Lorenzo / Luque">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Turno / Disponibilidad</label>
+                <input name="turno" class="form-control" value="{{ user['turno'] or '' }}" placeholder="Ej: 08:00-17:00">
+              </div>
+            {% else %}
+              <div class="col-12 col-md-6">
+                <label class="form-label">Área</label>
+                <input name="area" class="form-control" value="{{ user['area'] or '' }}">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Turno</label>
+                <input name="turno" class="form-control" value="{{ user['turno'] or '' }}">
+              </div>
+            {% endif %}
+
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-header"><strong>Preferencias</strong></div>
+          <div class="card-body">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="prefDark" name="dark_mode" {{ 'checked' if (user['dark_mode'] or 0)==1 else '' }}>
+              <label class="form-check-label" for="prefDark">Modo oscuro</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="prefNotifs" name="notifs" {{ 'checked' if (user['notifs'] or 0)==1 else '' }}>
+              <label class="form-check-label" for="prefNotifs">Notificaciones de tickets</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-grid d-md-flex gap-2">
+          <button class="btn btn-primary">Guardar cambios</button>
+          <a href="{{ url_for('menu') }}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

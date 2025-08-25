@@ -1,0 +1,4 @@
+Flask>=3.0
+Jinja2
+Werkzeug
+pysqlite3-binary; platform_python_implementation == 'CPython' and sys_platform == 'linux'

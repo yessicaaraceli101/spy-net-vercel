@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="m-0">Clientes</h3>
+  <div>
+    <a class="btn btn-success me-2" href="{{ url_for('clientes_nuevo') }}">➕ Nuevo cliente</a>
+  </div>
+</div>
+
+<form action="{{ url_for('clientes_importar') }}" method="post" enctype="multipart/form-data" class="mb-3">
+  <input type="file" name="csvfile" accept=".csv">
+  <button class="btn btn-primary">Importar CSV</button>
+</form>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4">
+    <input class="form-control" name="q" value="{{ q or '' }}" placeholder="Buscar por nombre, tel o referencia">
+  </div>
+  <div class="col-md-3">
+    <input class="form-control" name="barrio" value="{{ barrio or '' }}" placeholder="Barrio (opcional)">
+  </div>
+  <div class="col-md-3">
+    <input class="form-control" name="situacion" value="{{ situacion or '' }}" placeholder="Situación (opcional)">
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="exonerado">
+      <option value="">Exonerado (todos)</option>
+      <option value="1" {% if exonerado=='1' %}selected{% endif %}>Sí</option>
+      <option value="0" {% if exonerado=='0' %}selected{% endif %}>No</option>
+    </select>
+  </div>
+  <div class="col-12 d-flex gap-2">
+  <button class="btn btn-primary">
+    <i class="bi bi-search me-1"></i> Filtrar
+  </button>
+
+  <a class="btn btn-outline-secondary" href="{{ url_for('menu') }}">
+    <i class="bi bi-arrow-left me-1"></i> Volver
+  </a>
+</div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Ext. ID</th>
+        <th>Nombre</th>
+        <th>Referencia</th>
+        <th>Barrio</th>
+        <th>Teléfono</th>
+        <th>Situación</th>
+        <th>Exonerado</th>
+        <th>Tipo</th>
+        <th>Valor</th>
+        <th>Vencimiento</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clientes %}
+      <tr>
+        <td>{{ c.external_id or '-' }}</td>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.referencia or '-' }}</td>
+        <td>{{ c.barrio or '-' }}</td>
+        <td>{{ c.telefono or '-' }}</td>
+        <td>{{ c.situacion or '-' }}</td>
+        <td>
+          {% if c.exonerado %}
+            <span class="badge bg-warning text-dark">Sí</span>
+          {% else %}
+            No
+          {% endif %}
+        </td>
+        <td>{{ c.tipo or 'cliente' }}</td>
+        <td>{{ c.valor or '-' }}</td>
+        <td>{{ c.vencimiento or '-' }}</td>
+
+
+
+        <td class="text-end">
+  <a class="btn btn-sm btn-primary p-1"
+     href="{{ url_for('clientes_editar', cid=c.id) }}"
+     aria-label="Editar" title="Editar">
+    <i class="bi bi-pencil"></i>
+  </a>
+
+  <form method="post" action="{{ url_for('clientes_eliminar', cid=c.id) }}"
+        class="d-inline" onsubmit="return confirm('¿Eliminar cliente?')">
+    <button class="btn btn-sm btn-outline-danger p-1"
+            aria-label="Eliminar" title="Eliminar">
+      <i class="bi bi-trash"></i>
+    </button>
+  </form>
+</td>
+
+
+
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-muted">Total: {{ total }}</p>
+{% endblock %}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPYnet - Login</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --accent:#1a73e8;
+      --text-strong:#344054;
+      --text-muted:#667085;
+      --card-radius:16px;
+      --card-shadow:0 10px 35px rgba(16,24,40,.08);
+    }
+    html, body { height: 100%; background:#f0f4ff; color:var(--text-strong); }
+
+    /* Fondo con imagen */
+    .bg-hero{
+      position: fixed; inset:0; z-index:0;
+      background:
+        linear-gradient(to bottom, rgba(255,255,255,.65), rgba(255,255,255,.92)),
+        url("https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600&auto=format&fit=crop") center/cover no-repeat;
+      filter:saturate(.95);
+    }
+
+    .login-container{
+      position:relative; z-index:1;
+      min-height:100%; display:grid; place-items:center; padding:24px;
+    }
+
+    .login-box{
+      width:100%; max-width:380px; background:#fff;
+      border-radius:var(--card-radius);
+      box-shadow:var(--card-shadow);
+      border:1px solid #eef1f6;
+      position:relative;
+      overflow:visible; /* para que el logo sobresalga */
+    }
+
+    /* Logo redondo */
+    .logo-holder{
+      width:100px; height:100px;
+      border-radius:50%;
+      background:#fff;
+      position:absolute; left:50%; transform:translateX(-50%);
+      top:-50px;
+      box-shadow:0 8px 20px rgba(16,24,40,.12);
+      border:4px solid #fff;
+      overflow:hidden;
+    }
+    .logo-holder img{
+      width:100%; height:100%;
+      object-fit:cover;
+      border-radius:50%;
+    }
+
+    .login-body{ padding:64px 24px 24px; }
+
+    h1.login-title{ font-weight:700; margin-bottom:24px; text-align:center; }
+    .form-label{ color:var(--text-muted); font-weight:500; }
+    .form-control{ height:48px; border-radius:12px; border-color:#e4e7ec; }
+    .form-control:focus{ border-color:var(--accent); box-shadow:0 0 0 .25rem rgba(26,115,232,.15); }
+
+    .btn-primary{
+      background:var(--accent); border:none; height:48px; border-radius:12px; font-weight:600;
+    }
+
+    .show-password-btn{
+      position:absolute; right:10px; top:36px;
+      cursor:pointer; font-size:.9rem; color:var(--accent);
+      background:none; border:none; padding:0;
+    }
+
+    .footer-cta{ background:#fafbff; padding:18px; border-top:1px solid #eef1f6; text-align:center; }
+    .error-msg{ color:#d92d20; margin-top:.5rem; }
+    .helper-row a{ text-decoration:none; font-weight:600; }
+    .helper-row a:hover{ text-decoration:underline; }
+
+    .lock-icon{
+      width:18px;height:18px; display:inline-block; vertical-align:-3px;
+      border:2px solid #98a2b3; border-radius:4px; position:relative; margin-right:6px;
+    }
+    .lock-icon::before{
+      content:""; position:absolute; left:50%; transform:translateX(-50%);
+      top:-8px; width:12px; height:8px; border:2px solid #98a2b3; border-bottom:none; border-radius:8px 8px 0 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-hero" aria-hidden="true"></div>
+
+  <div class="login-container">
+    <section class="login-box">
+      <!-- Logo redondo -->
+      <div class="logo-holder">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="SPYnet Logo">
+      </div>
+
+      <div class="login-body">
+        <h1 class="login-title">SPYnet</h1>
+
+        <form method="POST" novalidate>
+          <div class="mb-3">
+            <label for="usuario" class="form-label">Usuario</label>
+            <input type="text" id="usuario" name="usuario" class="form-control" required />
+          </div>
+
+          <div class="mb-3 position-relative">
+            <label for="contrasena" class="form-label">Contraseña</label>
+            <input type="password" id="contrasena" name="contrasena" class="form-control" required />
+            <button type="button" class="show-password-btn" id="togglePassword">Mostrar</button>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 helper-row mb-4">
+           <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="recordarme" name="recordarme">
+              <label class="form-check-label" for="recordarme">Recordarme</label>
+           </div>
+
+            <a href="{{ url_for('forgot_password') }}">
+            <span class="lock-icon" aria-hidden="true"></span>
+            ¿Olvidaste la contraseña?
+            </a>
+            </div> <!-- ← Cerrar esta fila aquí -->
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+          <div class="alert alert-{{ 'danger' if cat=='danger' else cat }} mt-2">{{ msg }}</div>
+         {% endfor %}
+         {% endwith %}
+
+          <button type="submit" class="btn btn-primary w-100 mt-3">Acceder</button>
+        </form>
+      </div>
+
+      <div class="footer-cta">
+       ¿No tienes una cuenta? <a href="{{ url_for('register') }}">Registrarse</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const togglePasswordBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('contrasena');
+    togglePasswordBtn?.addEventListener('click', () => {
+      const isPass = passwordInput.type === 'password';
+      passwordInput.type = isPass ? 'text' : 'password';
+      togglePasswordBtn.textContent = isPass ? 'Ocultar' : 'Mostrar';
+    });
+  </script>
+</body>
+</html>

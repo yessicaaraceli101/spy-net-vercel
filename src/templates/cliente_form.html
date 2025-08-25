@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{% if mode=='edit' %}Editar Cliente{% else %}Nuevo Cliente{% endif %}{% endblock %}
+{% block content %}
+<h3 class="mb-3">{% if mode=='edit' %}Editar{% else %}Nuevo{% endif %} cliente</h3>
+
+<form method="post" class="row g-3" id="clienteForm"
+      data-tipo-valor="{{ (cliente.tipo_valor if cliente else '') | default('', true) }}">
+
+  <div class="col-md-3">
+    <label class="form-label">ID externo</label>
+    <input class="form-control" name="external_id" value="{{ cliente.external_id if cliente else '' }}">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label">Nombre</label>
+    <input class="form-control" name="nombre" id="nombre" required
+           value="{{ cliente.nombre if cliente else '' }}">
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Teléfono</label>
+    <input class="form-control" name="telefono" value="{{ cliente.telefono if cliente else '' }}">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label">Referencia</label>
+    <input class="form-control" name="referencia" value="{{ cliente.referencia if cliente else '' }}">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label">Barrio</label>
+    <input class="form-control" name="barrio" value="{{ cliente.barrio if cliente else '' }}">
+  </div>
+
+  <!-- NUEVO: Cédula -->
+  <div class="col-md-3">
+    <label class="form-label">Cédula</label>
+    <input class="form-control" name="cedula" value="{{ cliente.cedula if cliente else '' }}"
+           placeholder="N.º de documento">
+  </div>
+
+  <!-- NUEVO: PPPoE (con generador desde Nombre) -->
+  <div class="col-md-3">
+    <label class="form-label">PPPoE</label>
+    <div class="input-group">
+      <input class="form-control" name="pppoe" id="pppoe"
+             value="{{ cliente.pppoe if cliente else '' }}"
+             placeholder="usuario@spynet.com">
+      <button type="button" class="btn btn-outline-secondary" id="btnGenPPPOE"
+              title="Generar desde nombre">
+        <i class="bi bi-magic"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label">Situación</label>
+    <input class="form-control" name="situacion"
+           value="{{ cliente.situacion if cliente else '' }}"
+           placeholder="Ej: Activo / En mora">
+  </div>
+
+  <div class="col-md-2 d-flex align-items-end">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="exonerado" id="ex"
+             {% if cliente and cliente.exonerado==1 %}checked{% endif %}>
+      <label class="form-check-label" for="ex">Exonerado</label>
+    </div>
+  </div>
+
+  <!-- Tipo y Valor separados (se combinan en tipo_valor oculto) -->
+  <div class="col-md-3">
+    <label class="form-label">Tipo</label>
+    <input class="form-control" name="tipo" id="tipo" placeholder="cliente" value="cliente">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">Valor (plan / precio)</label>
+    <input class="form-control" name="valor" id="valor" placeholder="Ej: 130.000 Gs" value="">
+  </div>
+  <input type="hidden" name="tipo_valor" id="tipo_valor_hidden"
+         value="{{ cliente.tipo_valor if cliente else '' }}">
+
+  <div class="col-md-3">
+    <label class="form-label">Vencimiento</label>
+    <input class="form-control" name="vencimiento"
+           value="{{ cliente.vencimiento if cliente else '' }}"
+           placeholder="Texto o fecha">
+  </div>
+
+  <div class="col-12">
+    <button class="btn btn-primary">
+      <i class="bi bi-save me-1"></i> Guardar
+    </button>
+    <a class="btn btn-secondary ms-2" href="{{ url_for('clientes') }}">
+      <i class="bi bi-arrow-left me-1"></i> Volver
+    </a>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById('clienteForm');
+  const tipoInput = document.getElementById('tipo');
+  const valorInput = document.getElementById('valor');
+  const hiddenTV  = document.getElementById('tipo_valor_hidden');
+
+  // Cargar tipo/valor desde tipo_valor guardado (modo editar)
+  const tvRaw = (form.getAttribute('data-tipo-valor') || '').trim();
+  if (tvRaw) {
+    let tipo = '', valor = '';
+    if (tvRaw.includes(':')) {
+      const parts = tvRaw.split(':');
+      tipo  = (parts[0] || '').trim();
+      valor = (parts.slice(1).join(':') || '').trim();
+    } else {
+      const m = tvRaw.match(/^(\S+)\s+(.*)$/);
+      if (m) { tipo = m[1].trim(); valor = m[2].trim(); }
+      else { tipo = tvRaw.trim(); }
+    }
+    tipoInput.value = tipo || 'cliente';
+    valorInput.value = valor || '';
+  } else {
+    if (!tipoInput.value) tipoInput.value = 'cliente';
+  }
+
+  // Antes de enviar, combinar tipo + valor a tipo_valor
+  form.addEventListener('submit', function () {
+    const tipo  = (tipoInput.value || 'cliente').trim();
+    const valor = (valorInput.value || '').trim();
+    hiddenTV.value = valor ? (tipo + ': ' + valor) : tipo;
+  });
+
+  // Generar PPPoE desde "Nombre" (quita acentos, espacios y signos)
+  const btnGen = document.getElementById('btnGenPPPOE');
+  const pppoe  = document.getElementById('pppoe');
+  const nombre = document.getElementById('nombre');
+
+  function slugify(s) {
+    if (!s) return '';
+    // Normaliza (NFD) y quita marcas diacríticas
+    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    s = s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return s;
+  }
+
+  btnGen?.addEventListener('click', function () {
+    const base = slugify(nombre?.value || '');
+    if (base) pppoe.value = base + '@spynet.com';
+  });
+})();
+</script>
+{% endblock %}

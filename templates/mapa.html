@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Mapa{% endblock %}
+
+{% block content %}
+<h1 class="mb-3">Mapa</h1>
+
+<div class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="date" id="desde" class="form-control">
+  </div>
+  <div class="col-auto">
+    <input type="date" id="hasta" class="form-control">
+  </div>
+  <div class="col-auto">
+    <select id="tecSel" class="form-select">
+      <option value="">(Seleccionar técnico para ver trayectoria)</option>
+      {% for t in tecnicos or [] %}
+        <option value="{{ t.id }}">{{ t.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button id="btnRuta" class="btn btn-outline-primary">Ver trayectoria</button>
+  </div>
+  <div class="col-auto">
+    <button id="btnRefrescar" class="btn btn-primary">Refrescar</button>
+  </div>
+</div>
+
+<div id="map" style="height: 75vh; border-radius: 0.5rem; border: 1px solid #e5e7eb;"></div>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Helpers de fecha
+  (function initDates(){
+    const d = new Date();
+    const fmt = x => x.toString().padStart(2,'0');
+    const hoy = `${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())}`;
+    document.getElementById('desde').value = hoy;
+    document.getElementById('hasta').value = hoy;
+  })();
+
+  // Mapa base
+  const map = L.map('map', { zoomControl: true });
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20, attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  const layerTickets  = L.layerGroup().addTo(map);
+  const layerTecnicos = L.layerGroup().addTo(map);
+  const layerRutas    = L.layerGroup().addTo(map);
+
+  L.control.layers(null, {
+    "Tickets": layerTickets,
+    "Técnicos": layerTecnicos,
+    "Trayectorias": layerRutas
+  }, { collapsed: false }).addTo(map);
+
+  function icon(color) {
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background:${color};width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #333"></div>`,
+      iconSize: [16,16], iconAnchor: [8,8]
+    });
+  }
+
+  async function cargarDatos() {
+    const r = await fetch("{{ url_for('api_mapa_datos') }}");
+    const data = await r.json();
+
+    layerTickets.clearLayers();
+    layerTecnicos.clearLayers();
+
+    const bounds = [];
+    // Tickets
+    (data.tickets || []).forEach(t => {
+      if (t.lat == null || t.lng == null) return;
+      const m = L.marker([t.lat, t.lng], {icon: icon('#0d6efd')})
+        .bindPopup(
+          `<b>${t.cliente}</b><br>
+           ${t.direccion || ''}<br>
+           <small>Tipo: ${t.tipo || '-'} | Prioridad: ${t.prioridad || '-'}</small><br>
+           <small>Estado: ${t.estado || '-'} | Técnico: ${t.tecnico || '-'}</small><br>
+           <small>Agenda: ${t.programada_en || ''}</small>`
+        );
+      m.addTo(layerTickets);
+      bounds.push([t.lat, t.lng]);
+    });
+
+    // Técnicos
+    (data.tecnicos || []).forEach(t => {
+      if (t.lat == null || t.lng == null) return;
+      const m = L.marker([t.lat, t.lng], {icon: icon('#198754')})
+        .bindPopup(`<b>${t.nombre || ('Tec #' + t.id)}</b><br><small>${t.ts || ''}</small>`)
+        .on('click', () => verTrayectoria(t.id));
+      m.addTo(layerTecnicos);
+      bounds.push([t.lat, t.lng]);
+    });
+
+    if (bounds.length) map.fitBounds(bounds, {padding:[40,40]});
+    else map.setView([-25.3, -57.6], 12); // fallback
+  }
+
+  async function verTrayectoria(tid) {
+    const desde = document.getElementById('desde').value;
+    const hasta = document.getElementById('hasta').value;
+    if (!tid) return;
+
+    const url = `{{ url_for('api_tecnico_trayectoria', tid=0) }}`.replace('/0','/'+tid) + `?desde=${desde}&hasta=${hasta}`;
+    const r = await fetch(url);
+    const pts = await r.json();
+
+    layerRutas.clearLayers();
+    if (!pts.length) return;
+
+    const latlngs = pts.map(p => [p.lat, p.lng]);
+    L.polyline(latlngs, {weight: 4, opacity: 0.8}).addTo(layerRutas);
+    L.circleMarker(latlngs[0], {radius:5}).bindPopup('Inicio').addTo(layerRutas);
+    L.circleMarker(latlngs[latlngs.length-1], {radius:5}).bindPopup('Fin').addTo(layerRutas);
+    map.fitBounds(L.latLngBounds(latlngs), {padding:[50,50]});
+  }
+
+  document.getElementById('btnRefrescar').addEventListener('click', cargarDatos);
+  document.getElementById('btnRuta').addEventListener('click', () => {
+    const tid = document.getElementById('tecSel').value;
+    verTrayectoria(tid);
+  });
+
+  cargarDatos();
+  setInterval(cargarDatos, 30000); // auto-refresh 30s
+</script>
+{% endblock %}

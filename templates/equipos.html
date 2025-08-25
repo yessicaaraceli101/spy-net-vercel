@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Equipos{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f8f9fa;
+  }
+  .card-header i {
+    margin-right: 8px;
+  }
+  .form-inline {
+    gap: 0.3rem;
+  }
+</style>
+
+<h1 class="text-center mb-4 p-3 bg-light rounded shadow-sm">
+  <i class="fas fa-network-wired me-2"></i>Gestión de Equipos 
+</h1>
+
+<!-- DASHBOARD VISUAL -->
+<div class="row text-center mb-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm bg-light">
+      <div class="card-body">
+        <h5 class="card-title">🔧 Total Equipos</h5>
+        <p class="fs-3">{{ total }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm bg-light">
+      <div class="card-body">
+        <h5 class="card-title">🛠️ En Uso Hoy</h5>
+        <p class="fs-3">{{ en_uso }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm bg-light">
+      <div class="card-body">
+        <h5 class="card-title">✅ Disponibles</h5>
+        <p class="fs-3">{{ disponibles }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EQUIPOS CON FORMULARIO PARA REGISTRAR USO CON CANTIDAD -->
+<div class="row">
+  <div class="col-md-8 mx-auto mb-4">
+    <div class="card shadow h-100">
+      <div class="card-header bg-success text-white">
+        <h5><i class="fas fa-tools"></i> Equipos</h5>
+      </div>
+      <div class="card-body">
+        {% for equipo in equipos %}
+          <div class="mb-3 d-flex align-items-center justify-content-between">
+            <div>
+              <strong>{{ equipo['nombre'] }}</strong> <small class="text-muted">({{ equipo['tipo'] }})</small><br>
+              <small class="text-muted">{{ equipo['descripcion'] }}</small>
+            </div>
+
+            <form method="POST" action="{{ url_for('registrar_uso_item') }}" class="d-flex align-items-center gap-2">
+              <input type="hidden" name="item_id" value="{{ equipo['id'] }}">
+              <input type="hidden" name="tecnico" value="{{ session['usuario'] }}">
+              <input type="number" name="cantidad" min="1" value="1" class="form-control form-control-sm" style="width: 70px;" required>
+              <button type="submit" class="btn btn-outline-success btn-sm">Registrar Uso</button>
+            </form>
+          </div>
+          <hr>
+        {% else %}
+          <p class="text-muted">No hay equipos registrados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORIAL DE USO DE EQUIPOS -->
+<div class="card shadow mb-4 col-md-8 mx-auto">
+  <div class="card-header bg-info text-white">
+    <h5><i class="fas fa-history"></i> Historial de Uso de Equipos</h5>
+  </div>
+  <div class="card-body table-responsive">
+    <table class="table table-bordered table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Equipo</th>
+          <th>Técnico</th>
+          <th>Cantidad</th>
+          <th>Fecha</th>
+          <th>Servicio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for uso in historial %}
+          <tr>
+            <td>{{ uso['equipo_nombre'] }}</td>
+            <td>{{ uso['tecnico'] }}</td>
+            <td>{{ uso['cantidad'] }}</td>
+            <td>{{ uso['fecha'] }}</td>
+            <td>{{ uso['servicio'] }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted">No hay registros aún.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL PARA REGISTRAR NUEVO EQUIPO -->
+<div class="text-center mt-4">
+  <button class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modalRegistrarEquipo">
+    <i class="fas fa-plus-circle"></i> Registrar Nuevo Equipo
+  </button>
+</div>
+
+<div class="modal fade" id="modalRegistrarEquipo" tabindex="-1" aria-labelledby="modalRegistrarEquipoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('registrar_equipo') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalRegistrarEquipoLabel">Registrar Nuevo Equipo</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="nombre" class="form-label">Nombre del equipo</label>
+            <input type="text" class="form-control" id="nombre" name="nombre" required>
+          </div>
+          <div class="mb-3">
+            <label for="tipo" class="form-label">Tipo</label>
+            <input type="text" class="form-control" id="tipo" name="tipo" required>
+          </div>
+          <div class="mb-3">
+            <label for="descripcion" class="form-label">Descripción</label>
+            <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Equipo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %} 

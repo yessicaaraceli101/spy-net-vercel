@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Informe de Tareas{% endblock %}
+
+{% block content %}
+<h1>Lista de Asistencias</h1>
+
+{% if tickets %}
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Dirección</th>
+          <th>Tipo</th>
+          <th>Señal</th>
+          <th>Técnico</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr>
+        <td>
+          <a href="#" class="cliente-nombre" data-index="{{ loop.index }}">{{ t['cliente'] }}</a>
+          <div class="detalles" id="detalles-{{ loop.index }}" style="display:none; font-size: 0.9em; color: gray; margin-top: 4px;">
+            <strong>Cédula:</strong> {{ t['cedula'] }}<br>
+            <strong>PPPoE:</strong> {{ t['pppoe'] }}
+          </div>
+        </td>
+        <td>{{ t['direccion'] }}</td>
+        <td>{{ t['tipo'] }}</td>
+        <td>{{ t['prioridad'] }}</td>
+        <td>{{ t['tecnico'] }}</td>
+        <td>{{ t.get('estado', 'Pendiente') }}</td>
+        <td>{{ t['fecha'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p>No hay tareas registradas.</p>
+{% endif %}
+
+<a href="{{ url_for('descargar_pdf') }}" class="btn btn-success">Descargar PDF</a>
+<a href="{{ url_for('descargar_word') }}" class="btn btn-primary ms-2">Descargar Word</a>
+<a href="{{ url_for('menu') }}" class="btn btn-secondary ms-2">Volver al Menú</a>
+
+<script>
+  document.querySelectorAll('.cliente-nombre').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const idx = el.dataset.index;
+      const detalles = document.getElementById('detalles-' + idx);
+      detalles.style.display = detalles.style.display === 'none' ? 'block' : 'none';
+    });
+  });
+</script>
+
+{% endblock %}
